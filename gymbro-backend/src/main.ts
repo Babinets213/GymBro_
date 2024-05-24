@@ -13,7 +13,9 @@ async function bootstrap() {
   const keyPath = process.env.SSL_KEY_PATH || '';
   const certPath = process.env.SSL_CERT_PATH || '';
   let httpsOptions = null;
-
+  /**
+   *ЗЯкщо SSL ввімкнено, завантажуємо ключ і сертифікат.
+   */
   // Якщо SSL ввімкнено, завантажуємо ключ і сертифікат.
   if (ssl) {
     httpsOptions = {

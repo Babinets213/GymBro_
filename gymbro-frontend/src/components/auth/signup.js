@@ -4,6 +4,9 @@ import axios from "axios";
 // import nodemailer from 'nodemailer'; // Поточно закоментовано, може бути використано для відправки листів з підтвердженням
 
 // Компонент для сторінки реєстрації
+/**
+* // Компонент для сторінки реєстрації
+ */
 export default function SignUpPage() {
     const [email, setEmail] = useState(""); // Стан для зберігання email
     const [password, setPassword] = useState(""); // Стан для зберігання пароля

@@ -8,8 +8,10 @@ export default function SignInPage() {
     const [password, setPassword] = useState(""); // Стан для зберігання пароля
     const [error, setError] = useState(null); // Стан для зберігання помилки входу
     const navigate = useNavigate(); // Функція для зміни маршруту
-
-    // Функція для відправки запиту на вхід
+    /**
+     * Форматує час в секундах у вигляді хвилин і секунд.
+     * @e {number} seconds - Кількість секунд.
+     */
     async function handleLogin(e) {
         e.preventDefault(); // Зупиняємо стандартну поведінку форми
         try {
