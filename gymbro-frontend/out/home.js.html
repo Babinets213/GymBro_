@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: home.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: home.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router";
+import axios from "axios";
+import NavBar from "./components/shared/navbar-user";
+
+// Отримання токену доступу до локального сховища
+const accessToken = localStorage.getItem("access_token");
+
+// Імпорт сокету з головного компоненту
+import { socket } from './App'
+
+/**
+ * Компонент для сторінки "Домашня".
+ * @component
+ */
+export default function HomePage() {
+    const [user, setUser] = useState({});
+    const [message, setMessage] = useState(null);
+    const [routines, setRoutines] = useState([]);
+
+    // Слухач подій з сокета
+    socket.on('notify', (msg) => {
+        console.log(msg)
+        setMessage(msg);
+    })
+
+    let navigate = useNavigate();
+    const changePathWorkout = routineId => {
+        startWorkout(routineId)
+            .then(res => {
+                const { id } = res;
+                navigate(`/workout/${id}`);
+            });
+    }
+
+    const changePathNewRoutine = () => {
+        navigate(`/create-routine`);
+    }
+
+    /**
+     * Запуск тренування.
+     * @param {string} routineId - Ідентифікатор рутиини.
+     * @returns {Promise&lt;Object>} - Об'єкт тренування.
+     */
+    async function startWorkout(routineId) {
+        const res = await axios.post(
+            `https://localhost:3999/api/workout/start`,
+            {
+                timeStart: new Date().toISOString(),
+                routineId: routineId
+            },
+            {
+                headers: { 'Authorization': `Bearer ${accessToken}` }
+            }
+        );
+        const { data } = res;
+        return data;
+    }
+
+    /**
+     * Видалення рутиини.
+     * @param {string} routineId - Ідентифікатор рутиини.
+     */
+    const deleteRoutine = routineId => {
+        axios.delete(
+            `https://localhost:3999/api/routine/delete/${routineId}`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            }).then(res => {
+            setRoutines((prevRoutines) =>
+                prevRoutines.filter((routine) => routine.id !== routineId)
+            );
+        }).catch(err => {
+            console.log(err);
+        })
+    }
+
+    /**
+     * Отримання списку рутиин користувача та даних користувача при завантаженні компонента.
+     */
+    useEffect(() => {
+        async function fetchRoutines() {
+            const res = await axios.get(
+                "https://localhost:3999/api/routine/get-all-by-user", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                })
+            const { data } = res;
+            setRoutines(data);
+        }
+
+        async function fetchUser() {
+            const res = await axios.get(
+                "https://localhost:3999/api/users/me", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                })
+            const { data } = res;
+            setUser(data);
+        }
+
+        fetchUser();
+        fetchRoutines();
+    }, []);
+
+    /**
+     * Компонент для списку рутиин.
+     * @param {Object} props - Властивості компонента.
+     * @returns {JSX.Element} - JSX-елемент для відображення списку рутиин.
+     */
+    function RoutineList(props) {
+        return (
+            &lt;div>
+                {props.routines.map(routine => (
+                    &lt;div key={routine.id}>
+                        &lt;h3 className="mt-4">{routine.title}&lt;/h3>
+                        &lt;button
+                            className="btn btn-dark"
+                            onClick={() => changePathWorkout(routine.id)}>
+                            Start Routine
+                        &lt;/button>
+                        &lt;button
+                            className="btn btn-secondary ms-2"
+                            onClick={() => deleteRoutine(routine.id)}>
+                            Delete Routine
+                        &lt;/button>
+
+                    &lt;/div>
+                ))}
+                &lt;br />
+                &lt;button
+                    className="btn btn-primary mt-3 fs-4"
+                    onClick={changePathNewRoutine}>
+                    Create new routine
+                &lt;/button>
+            &lt;/div>
+        );
+    }
+
+    // Повернення рендерингу компонента
+    return (
+        &lt;div>
+            &lt;NavBar user={user} />
+
+            &lt;h3 className="mt-4 container">
+                Admin message:
+                &lt;h4 className="fs-4 text-info">{message ? message : "No messages yet"}&lt;/h4>
+            &lt;/h3>
+            &lt;div className="container mt-4">
+                &lt;h1 className="mb-4">My Routines&lt;/h1>
+                &lt;RoutineList routines={routines} />
+            &lt;/div>
+        &lt;/div>
+    );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Fri May 24 2024 07:33:20 GMT+0300 (Восточная Европа, летнее время)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

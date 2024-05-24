@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: user.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: user.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect } from "react";
+import axios from "axios";
+import NavBar from "./components/shared/navbar-user";
+import { useNavigate } from "react-router";
+
+// Отримання токену доступу до локального сховища
+const accessToken = localStorage.getItem("access_token");
+
+/**
+ * Компонент для відображення сторінки користувача.
+ * @component
+ */
+export default function UserPage() {
+    const [user, setUser] = useState(null);
+    const [workouts, setWorkouts] = useState([]);
+    const [firstNameState, setFirstName] = useState("");
+    const [lastNameState, setLastName] = useState("");
+    const [error, setError] = useState(null);
+    const totalWorkoutTime = workouts.reduce((total, workout) => total + (workout.duration || 0), 0);
+
+    /**
+     * Отримання даних користувача при завантаженні компонента.
+     */
+    useEffect(() => {
+        async function fetchUser() {
+            const res = await axios.get(
+                "https://localhost:3999/api/users/me", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+            const { data } = res;
+            setUser(data);
+            setFirstName(data.firstName);
+            setLastName(data.lastName);
+        }
+
+        async function fetchWorkouts() {
+            const res = await axios.get(
+                "https://localhost:3999/api/workout/get-all-by-user", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+            const { data } = res;
+            setWorkouts(data);
+
+            const workoutsWithDuration = data.map((workout) => {
+                const { timeStart, timeEnd } = workout;
+                if (timeStart &amp;&amp; timeEnd) {
+                    const durationInMinutes = Math.round((timeEnd - timeStart) / (1000 * 60));
+                    return { ...workout, duration: durationInMinutes };
+                }
+            });
+            console.log(workoutsWithDuration);
+        }
+
+        fetchWorkouts();
+        fetchUser();
+    }, []);
+
+    /**
+     * Оновлення даних користувача.
+     */
+    const handleUpdateUser = async () => {
+        var firstName = (firstNameState === "") ? undefined : firstNameState;
+        var lastName = (lastNameState === "") ? undefined : lastNameState;
+        try {
+            const res = await axios.put(
+                "https://localhost:3999/api/users/update",
+                {
+                    firstName: firstName,
+                    lastName: lastName
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                }
+            );
+
+        } catch (err) {
+            console.log(err);
+            const errorMessage = err.response ? err.response.data.message : err.message;
+            setError(errorMessage);
+        }
+    };
+
+    /**
+     * Отримання загального часу тренувань.
+     * @param {string} workoutId - Ідентифікатор тренування.
+     * @returns {number} - Загальний час тренувань у секундах.
+     */
+    async function getTotalWorkoutTime(workoutId) {
+        try {
+            const res = await axios.get(`https://localhost:3999/api/set/get-by-workout/${workoutId}`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                },
+            });
+            const { data } = res;
+            console.log(data);
+            const totalWorkoutTime = data.reduce((sum, set) => sum + set.elapsedSeconds, 0);
+            console.log(totalWorkoutTime);
+            return totalWorkoutTime;
+        } catch (error) {
+            console.error(error);
+            return 0;
+        }
+    }
+
+    // Навігація за допомогою React Router
+    const navigate = useNavigate();
+    function handleLogout() {
+        localStorage.removeItem("access_token");
+        navigate("/");
+    }
+
+    // Перевірка, чи завантажені дані користувача
+    if (!user) {
+        return (
+            &lt;div>
+                &lt;NavBar user={{}} />
+                &lt;h5 className="container mt-4">
+                    Loading...
+                &lt;/h5>
+            &lt;/div>
+        );
+    }
+
+    // Повернення рендерингу компонента
+    return (
+        &lt;div>
+            &lt;NavBar user={user} />
+            &lt;div className="container">
+                &lt;h1 className="mt-4">Hello, Gym Bro!&lt;/h1>
+
+                &lt;form onSubmit={handleUpdateUser}>
+                    {
+                        (error &amp;&amp; Array.isArray(error)) ?
+                            error.map(err => (&lt;p className="text-danger">{err}&lt;/p>)) :
+                            &lt;p className="text-danger">{error}&lt;/p>
+                    }
+                    &lt;label>
+                        Your Email:
+                        &lt;input
+                            className="form-control mb-2"
+                            type="email"
+                            value={user.email}
+                            readOnly
+                        />
+                    &lt;/label>
+                    &lt;br />
+
+                    &lt;label>
+                        First Name
+                        &lt;input
+                            className="form-control mb-2"
+                            type="text"
+                            placeholder={firstNameState}
+                            onChange={e => setFirstName(e.target.value)}
+                        />
+                    &lt;/label>
+                    &lt;br />
+
+                    &lt;label>
+                        Last Name
+                        &lt;input
+                            className="form-control mb-2"
+                            type="text"
+                            placeholder={lastNameState}
+                            onChange={e => setLastName(e.target.value)}
+                        />
+                    &lt;/label>
+                    &lt;br />
+
+                    &lt;button
+                        className="btn btn-primary mt-2"
+                        type="submit"
+                    >
+                        Update
+                    &lt;/button>
+                &lt;/form>
+
+                &lt;button
+                    className="btn btn-secondary mt-2"
+                    type="button"
+                    onClick={handleLogout}
+                >
+                    Log Out
+                &lt;/button>
+
+                &lt;h2 className="mt-4">Workouts:&lt;/h2>
+                &lt;ul>
+                    {workouts.map((workout) => (
+                        workout.timeEnd &amp;&amp; (
+                            &lt;li key={workout.id}>
+                                &lt;p>Start Time: {workout.timeStart ? new Date(workout.timeStart).toLocaleString() : "Not started"}&lt;/p>
+                                &lt;p>End Time: {workout.timeEnd ? new Date(workout.timeEnd).toLocaleString() : "Not finished yet"}&lt;/p>
+                                {/* &lt;p>Total Workout Time: {getTotalWorkoutTime(workout.id)} seconds&lt;/p> */}
+                            &lt;/li>
+                        )
+                    ))}
+                &lt;/ul>
+            &lt;/div>
+        &lt;/div>
+    );
+};</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Fri May 24 2024 07:31:20 GMT+0300 (Восточная Европа, летнее время)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

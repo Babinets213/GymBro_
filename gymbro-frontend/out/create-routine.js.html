@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: create-routine.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: create-routine.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router";
+import axios from "axios";
+import NavBar from "./components/shared/navbar-user";
+
+// Отримання токену доступу до локального сховища
+const accessToken = localStorage.getItem("access_token");
+
+/**
+ * Компонент для створення нової рутини.
+ * @component
+ */
+export default function CreateRoutinePage() {
+    const [user, setUser] = useState({});
+    const [exercises, setExercises] = useState([]);
+    const [routineExercises, setRoutineExercises] = useState([]);
+    const [selectedExerciseName, setSelectedExerciseName] = useState([]);
+    const [title, setTitle] = useState("");
+    const [error, setError] = useState(null);
+    const selectRef = useRef(null);
+    const navigate = useNavigate();
+
+    /**
+     * Отримання списку упражнень і даних користувача при завантаженні компонента.
+     */
+    useEffect(() => {
+        async function fetchExercises() {
+            const res = await axios.get(
+                "https://localhost:3999/api/exercise/get-all", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                })
+            const { data } = res;
+            setExercises(data);
+            setSelectedExerciseName(data[0]?.name);
+        }
+
+        async function fetchUser() {
+            const res = await axios.get(
+                "https://localhost:3999/api/users/me", {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                })
+            const { data } = res;
+            setUser(data);
+        }
+
+        fetchUser();
+        fetchExercises();
+    }, []);
+
+    /**
+     * Додавання вибраного упражнення до списку упражнень рутиини.
+     */
+    const addExercise = () => {
+        const selectedOption = selectRef.current.value;
+        setSelectedExerciseName(selectedOption);
+
+        const selectedExercise = exercises.find(exercise => exercise.name === selectedOption);
+        if (selectedExercise) {
+            setRoutineExercises(prevExercises => [...prevExercises, selectedExercise]);
+            setExercises(prevExercises => prevExercises.filter(exercise => exercise !== selectedExercise));
+        }
+    };
+
+    /**
+     * Видалення упражнення зі списку упражнень рутиини.
+     * @param {Object} exerciseToRemove - Упражнення для видалення.
+     */
+    const removeExercise = exerciseToRemove => {
+        setRoutineExercises(prevExercises => {
+            const updatedExercises = prevExercises.filter(exercise => exercise !== exerciseToRemove);
+            return updatedExercises;
+        });
+
+        setExercises(prevExercises => {
+            const updatedExercises = [...prevExercises, exerciseToRemove];
+            return updatedExercises;
+        });
+    }
+
+    /**
+     * Створення нової рутини.
+     */
+    async function createRoutine() {
+        try {
+            setError(null);
+            const res = await axios.put(
+                `https://localhost:3999/api/routine/create-with-exercises`,
+                {
+                    title: title,
+                    exercises: routineExercises
+                },
+                {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+            const { data } = res;
+            console.log(data);
+            navigate('/home');
+        } catch (err) {
+            console.log(err);
+            const errorMessage = err.response ? err.response.data.message : err.message;
+            setError(errorMessage);
+        }
+    }
+
+    // Повернення рендерингу компонента
+    return (
+        &lt;div>
+            &lt;NavBar user={user} />
+
+            &lt;div className="container mt-4">
+                &lt;h1>Create new routine&lt;/h1>
+
+                {/* Введення назви рутиини */}
+                {error ?
+                    (
+                        &lt;div class="form-group has-danger">
+                            &lt;label className="form-label mt-3" for="inputInvalid">Routine title&lt;/label>
+                            &lt;input
+                                className="form-control is-invalid"
+                                id="inputInvalid"
+                                type="text"
+                                value={title}
+                                style={{ maxWidth: '300px' }}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder="e.g. Chest + Triceps"
+                            />
+                            &lt;div className="invalid-feedback">{error}&lt;/div>
+                        &lt;/div>
+                    )
+                    :
+                    (
+                        &lt;div class="form-group">
+                            &lt;label className="form-label mt-3" for="inputValid">Routine title&lt;/label>
+                            &lt;input
+                                className="form-control"
+                                id="inputValid"
+                                type="text"
+                                value={title}
+                                style={{ maxWidth: '300px' }}
+                                onChange={e => setTitle(e.target.value)}
+                                placeholder="e.g. Chest + Triceps"
+                            />
+                        &lt;/div>
+                    )}
+
+                {/* Уже додані упражнення до рутиини */}
+                {routineExercises.length > 0 &amp;&amp; routineExercises.map(exercise => (
+                    &lt;div>
+                        &lt;div className="mt-2" key={exercise.id}>{exercise.name}&lt;/div>
+                        &lt;button
+                            className="btn btn-secondary"
+                            onClick={() => removeExercise(exercise)}
+                        >Remove&lt;/button>
+                    &lt;/div>
+                ))}
+
+                {/* Форма додавання упражнень */}
+                {exercises.length > 0 &amp;&amp; (
+                    &lt;div className="">
+                        &lt;select
+                            ref={selectRef}
+                            className="form-select mt-3"
+                            style={{ maxWidth: '300px' }}
+                            value={selectedExerciseName}
+                            onChange={e => setSelectedExerciseName(e.target.value)}
+                        >
+                            {exercises.map(exercise => (
+                                &lt;option key={exercise.id} >{exercise.name}&lt;/option>
+                            ))}
+                        &lt;/select>
+                        &lt;button
+                            className="btn btn-dark col-md-2 mt-2"
+                            onClick={addExercise}>
+                            Add exercise
+                        &lt;/button>
+                    &lt;/div>
+                )}
+
+                {/* Кнопка створення рутиини */}
+                &lt;button
+                    className="btn btn-primary btn-lg mt-4 col-md-3"
+                    style={{ maxWidth: '400px' }}
+                    onClick={createRoutine}>
+                    Create routine
+                &lt;/button>
+            &lt;/div>
+        &lt;/div>
+    );
+}</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 4.0.3</a> on Fri May 24 2024 07:32:41 GMT+0300 (Восточная Европа, летнее время)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
